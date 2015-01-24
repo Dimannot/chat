@@ -1,28 +1,98 @@
-var conf = { 
-    port: 8888,
-    debug: false,
-    dbPort: 6379,
-    dbHost: '127.0.0.1',
-    dbOptions: {},
-    mainroom: 'MainRoom'
-};
+// Setup basic express server
+var express = require('express');
+var app = express();
+var server = require('http').createServer(app);
+var io = require('socket.io')(server);
+var port = process.env.PORT || 3000;
 
-// External dependencies
-var express = require('express'),
-    http = require('http'),
-    socketio = require('socket.io'),
-    events = require('events'),
-    _ = require('underscore'),
-    redis = require('redis'),
-    sanitize = require('validator').sanitize;
+server.listen(port, function () {
+  console.log('Server listening at port %d', port);
+});
 
-// HTTP Server configuration & launch
-var app = express(),
-    server = http.createServer(app),
-    io = socketio.listen(server);
-server.listen(conf.port);
+// Routing
+app.use(express.static(__dirname + '/public'));
 
+// Chatroom
 
-io.sockets.on('connection', function(socket) {
-  console.log('Hi !');
+// usernames which are currently connected to the chat
+var usernames = {};
+var numUsers = 0;
+var arrMess = {};
+var numMess = 0;
+
+io.on('connection', function (socket) {
+  var addedUser = false;
+
+  // when the client emits 'new message', this listens and executes
+  socket.on('new message', function (data) {
+    // we tell the client to execute 'new message'
+    socket.broadcast.emit('new message', {
+      username: socket.username,
+      message: data
+    });
+  });
+  socket.on('user new message', function (data) {
+    // we tell the client to execute 'new message'
+	++numMess;
+	arrMess[numMess] = {
+		username: data.username,
+		message: data.message
+	};
+    socket.broadcast.emit('new message', {
+      username: socket.username,
+      message: data.message
+    });
+  });
+  
+
+  // when the client emits 'add user', this listens and executes
+  socket.on('add user', function (username) {
+    // we store the username in the socket session for this client
+    socket.username = username;
+    // add the client's username to the global list
+    usernames[username] = username;
+    ++numUsers;
+    addedUser = true;
+    socket.emit('login', {
+      numUsers: numUsers,
+	  arrUsers: usernames,
+	  arrMess: arrMess
+    });
+    // echo globally (all clients) that a person has connected
+    socket.broadcast.emit('user joined', {
+      username: socket.username,
+      numUsers: numUsers,
+	  arrUsers: usernames
+    });
+  });
+
+  // when the client emits 'typing', we broadcast it to others
+  socket.on('typing', function () {
+    socket.broadcast.emit('typing', {
+      username: socket.username
+    });
+  });
+
+  // when the client emits 'stop typing', we broadcast it to others
+  socket.on('stop typing', function () {
+    socket.broadcast.emit('stop typing', {
+      username: socket.username
+    });
+  });
+
+  // when the user disconnects.. perform this
+  socket.on('disconnect', function () {
+    // remove the username from global usernames list
+    if (addedUser) {
+      delete usernames[socket.username];
+      --numUsers;
+
+      // echo globally that this client has left
+      socket.broadcast.emit('user left', {
+        username: socket.username,
+        numUsers: numUsers,
+		arrUsers: usernames
+      });
+    }
+  });
 });
