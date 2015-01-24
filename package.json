@@ -9,5 +9,6 @@
     "socket.io": "",
     "underscore": "",
     "redis": "",
+    "validator": ""
   }
 }
