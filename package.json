@@ -1,0 +1,13 @@
+{
+  "name": "MyChat",
+  "author": "Dimannot",
+  "description": "MyChat",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "",
+    "socket.io": "",
+    "underscore": "",
+    "redis": "",
+  }
+}
