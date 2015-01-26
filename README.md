@@ -1,1 +1,2 @@
 # chat
+npm install
